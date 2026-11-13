@@ -5,9 +5,12 @@ const bcrypt = require('bcryptjs');
 const { categories: defaultCategories, posts: defaultPosts } = require('../data/seedData');
 
 let isConnectedToMongo = false;
+let dbPromise = null;
 
-// Embedded store for local zero-dependency fallback
-const LOCAL_DB_FILE = path.join(__dirname, '../data/local-db.json');
+// Embedded store for zero-dependency fallback (uses /tmp on serverless like Vercel)
+const LOCAL_DB_FILE = process.env.VERCEL
+  ? path.join('/tmp', 'local-db.json')
+  : path.join(__dirname, '../data/local-db.json');
 
 const memoryStore = {
   users: [],
@@ -76,26 +79,32 @@ function initializeLocalStore() {
 }
 
 /**
- * Connect to MongoDB with automatic fallback
+ * Connect to MongoDB with automatic fallback (cached for serverless)
  */
 async function connectDB() {
-  const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/techpulse_blog';
+  if (isConnectedToMongo) return;
+  if (dbPromise) return dbPromise;
 
-  try {
-    // Attempt Mongoose connection with 3-second timeout
-    await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 2500
-    });
-    isConnectedToMongo = true;
-    console.log(`\x1b[32m✔ MongoDB connected successfully to:\x1b[0m ${uri}`);
-    await autoSeedMongo();
-  } catch (error) {
-    isConnectedToMongo = false;
-    console.log(`\x1b[33m⚠ MongoDB is not running locally (${error.message}).\x1b[0m`);
-    console.log(`\x1b[36m⚡ Activating built-in JSON/Memory Database store for instant local development!\x1b[0m`);
-    initializeLocalStore();
-    console.log(`\x1b[32m✔ Local Store initialized with ${memoryStore.posts.length} posts & ${memoryStore.categories.length} categories.\x1b[0m`);
-  }
+  dbPromise = (async () => {
+    const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/techpulse_blog';
+
+    try {
+      await mongoose.connect(uri, {
+        serverSelectionTimeoutMS: 3000
+      });
+      isConnectedToMongo = true;
+      console.log(`\x1b[32m✔ MongoDB connected successfully to:\x1b[0m ${uri}`);
+      await autoSeedMongo();
+    } catch (error) {
+      isConnectedToMongo = false;
+      console.log(`\x1b[33m⚠ MongoDB is not running locally (${error.message}).\x1b[0m`);
+      console.log(`\x1b[36m⚡ Activating built-in JSON/Memory Database store for instant local development!\x1b[0m`);
+      initializeLocalStore();
+      console.log(`\x1b[32m✔ Local Store initialized with ${memoryStore.posts.length} posts & ${memoryStore.categories.length} categories.\x1b[0m`);
+    }
+  })();
+
+  return dbPromise;
 }
 
 /**

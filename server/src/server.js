@@ -24,6 +24,16 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Ensure database connection for both serverless and standalone
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error('Database connection error in middleware:', err.message);
+  }
+  next();
+});
+
 // SEO Endpoints at root level
 app.get('/sitemap.xml', seoController.getSitemapXml);
 app.get('/robots.txt', seoController.getRobotsTxt);
@@ -77,19 +87,21 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-// Initialize Database connection then start server
-connectDB().then(() => {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n======================================================`);
-    console.log(`🚀 TechPulse Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-    console.log(`🔗 API Base: http://localhost:${PORT}/api`);
-    console.log(`🔗 API Direct: http://127.0.0.1:${PORT}/api`);
-    console.log(`📄 Sitemap:  http://localhost:${PORT}/sitemap.xml`);
-    console.log(`🤖 Robots:   http://localhost:${PORT}/robots.txt`);
-    console.log(`======================================================\n`);
+// Start standalone HTTP server when not running in serverless (Vercel)
+if (process.env.VERCEL !== '1') {
+  connectDB().then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`\n======================================================`);
+      console.log(`🚀 TechPulse Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+      console.log(`🔗 API Base: http://localhost:${PORT}/api`);
+      console.log(`🔗 API Direct: http://127.0.0.1:${PORT}/api`);
+      console.log(`📄 Sitemap:  http://localhost:${PORT}/sitemap.xml`);
+      console.log(`🤖 Robots:   http://localhost:${PORT}/robots.txt`);
+      console.log(`======================================================\n`);
+    });
+  }).catch(err => {
+    console.error('Failed to start server:', err);
   });
-}).catch(err => {
-  console.error('Failed to start server:', err);
-});
+}
 
 module.exports = app;
