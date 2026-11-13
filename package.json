@@ -1,0 +1,17 @@
+{
+  "name": "techpulse-blog",
+  "version": "1.0.0",
+  "description": "TechPulse - Full-Stack MERN Technology Blog: React, Node, Express, MongoDB",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "seed": "npm run seed --prefix server",
+    "build": "npm run build --prefix client",
+    "start": "npm start --prefix server"
+  },
+  "keywords": ["mern", "react", "nodejs", "express", "mongodb", "blog", "technology"],
+  "author": "TechPulse Team",
+  "license": "MIT"
+}
